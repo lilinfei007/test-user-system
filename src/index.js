@@ -1,12 +1,86 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const fs = require("fs");
-const path = require("path");
+import express from "express";
+import cookieParser from "cookie-parser";
+import cookieSession from "cookie-session";
+import bcrypt  from "bcryptjs";
+import mongoose from "mongoose";
+import fs from "fs";
+import { fileURLToPath } from 'url'; 
+import path, { dirname } from "path";
+import {randomString} from "./utils.js";
+const { Schema } = mongoose;
+const ObjectId = mongoose.Types.ObjectId;
+const userSchema = new Schema({
+  password:String,
+});
+
+const extraUserInfo = {
+  username:String,
+  phoneNumber:String,
+  email:String
+}
+
+userSchema.add(extraUserInfo);
+
+const User = mongoose.model("user",userSchema);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const writeError = fs.createWriteStream(path.join(__dirname,"./Error/error.log"),{flags:"w+"})
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
-app.post("/api/user/register",(req,res) => {
+app.use(cookieParser());
+app.use(cookieSession({
+  name:"session",
+  keys:["key1","key2"],
+  maxAge:24*60*60*1000
+}));
+
+app.get("/test-session", (req,res) => {
+  req.session.views = (req.session.views || 0) + 1;
+  res.send(`这是第${req.session.views}次访问`);
+});
+
+app.post("/api/user/update/password",async (req,res) => {
+  if(!req.body.id) return res.json({status:1,message:"用户ID不能为空"});
+  let findOne = await User.findOne({_id:req.body.id})
+  if(!findOne){
+    return res.json({status:1,message:"用户不存在"});
+  }
+  if(req.body.reset){
+    let password = randomString(6);
+    findOne.password = bcrypt.hashSync(password,10);
+    await findOne.save();
+    return res.json({status:0,message:"重置密码成功",password});
+  }else{
+    if(!req.body.password) return res.json({status:1,message:"旧密码不能为空"});
+    let isSame = bcrypt.compareSync(req.body.password,findOne.password);
+    if(!isSame){
+      return res.json({status:1,message:"旧密码错误"});
+    }
+    if(!req.body.newPassword) return res.json({status:1,message:"新密码不能为空"});
+    if(req.body.newPassword.length < 6) return res.json({status:1,message:"新密码长度不能小于6"});
+    findOne.password = bcrypt.hashSync(req.body.newPassword,10);
+    await findOne.save();
+    return res.json({status:0,message:"修改密码成功"});
+  }
+});
+
+app.post("/api/user/update",async (req,res) => {
+  if(!req.body.id) return res.json({status:1,message:"用户ID不能为空"});
+  let findOne = await User.findOne({_id:req.body.id})
+  if(!findOne){
+    return res.json({status:1,message:"用户不存在"});
+  }
+  let safeKeys = Object.keys(extraUserInfo);
+  safeKeys.forEach(key => {
+    if(key in req.body){
+      findOne[key] = req.body[key];
+    }
+  });
+  await findOne.save();
+  res.json({status:0,message:"更新成功"});
+})
+
+app.post("/api/user/register",async (req,res) => {
   if(typeof req.body.username !== "string") return res.json({status:1,message:"用户名类型必须为字符串"});
   if(req.body.username.length == 0){
     return res.json({status:1,message:"用户名不能为空"});
@@ -18,6 +92,21 @@ app.post("/api/user/register",(req,res) => {
   if(req.body.password.length < 6){
     return res.json({status:1,message:"密码长度不能小于6"});
   }
+
+  let findOne = await User.findOne({username:req.body.username}).lean();
+  if(findOne){
+    return res.json({status:1,message:"用户已存在"});
+  }
+  let password= bcrypt.hashSync(req.body.password,10); 
+  // console.log(bcrypt.hashSync(req.body.password,10));
+  // let result = await bcrypt.compare("123456","$2b$10$F3pExbAKI6acPzlAJEAGlez5NfB7Bq3x6gzc0ru0uu6V4Vfi8kJt6")
+  // console.log(result);
+  let user = new User({
+    username:req.body.username,
+    password:password
+  });
+  console.log(user.toObject());
+  // await user.save();
   res.json({status:0,message:"注册成功"});
 });
 
