@@ -1,0 +1,11 @@
+TypeError: Cannot read properties of undefined (reading 'username')
+    at file:///D:/user-system/src/index.js:84:22
+    at Layer.handleRequest (D:\user-system\node_modules\.pnpm\router@2.2.0_supports-color@5.5.0\node_modules\router\lib\layer.js:152:17)
+    at next (D:\user-system\node_modules\.pnpm\router@2.2.0_supports-color@5.5.0\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\user-system\node_modules\.pnpm\router@2.2.0_supports-color@5.5.0\node_modules\router\lib\route.js:117:3)
+    at handle (D:\user-system\node_modules\.pnpm\router@2.2.0_supports-color@5.5.0\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\user-system\node_modules\.pnpm\router@2.2.0_supports-color@5.5.0\node_modules\router\lib\layer.js:152:17)
+    at D:\user-system\node_modules\.pnpm\router@2.2.0_supports-color@5.5.0\node_modules\router\index.js:295:15
+    at processParams (D:\user-system\node_modules\.pnpm\router@2.2.0_supports-color@5.5.0\node_modules\router\index.js:582:12)
+    at next (D:\user-system\node_modules\.pnpm\router@2.2.0_supports-color@5.5.0\node_modules\router\index.js:291:5)
+    at _cookieSession (D:\user-system\node_modules\.pnpm\cookie-session@2.1.1_supports-color@5.5.0\node_modules\cookie-session\index.js:135:5)

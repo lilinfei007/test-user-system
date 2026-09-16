@@ -23,7 +23,7 @@ userSchema.add(extraUserInfo);
 
 const User = mongoose.model("user",userSchema);
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const writeError = fs.createWriteStream(path.join(__dirname,"./Error/error.log"),{flags:"w+"})
+const writeError = fs.createWriteStream(path.join(__dirname,"./Error/error.log"),{flags:"a"})
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
@@ -34,14 +34,18 @@ app.use(cookieSession({
   maxAge:24*60*60*1000
 }));
 
+const requireLogin = (req,res,next) => {
+  if(!req.session.userId) return res.json({status:1,message:"用户未登录或登录已超时"});
+  next();
+}
+
 app.get("/test-session", (req,res) => {
   req.session.views = (req.session.views || 0) + 1;
   res.send(`这是第${req.session.views}次访问`);
 });
 
-app.post("/api/user/update/password",async (req,res) => {
-  if(!req.body.id) return res.json({status:1,message:"用户ID不能为空"});
-  let findOne = await User.findOne({_id:req.body.id})
+app.post("/api/user/update/password",requireLogin,async (req,res) => {
+  let findOne = await User.findOne({_id:req.session.id})
   if(!findOne){
     return res.json({status:1,message:"用户不存在"});
   }
@@ -64,9 +68,8 @@ app.post("/api/user/update/password",async (req,res) => {
   }
 });
 
-app.post("/api/user/update",async (req,res) => {
-  if(!req.body.id) return res.json({status:1,message:"用户ID不能为空"});
-  let findOne = await User.findOne({_id:req.body.id})
+app.post("/api/user/update",requireLogin,async (req,res) => {
+  let findOne = await User.findOne({_id:req.session.userId})
   if(!findOne){
     return res.json({status:1,message:"用户不存在"});
   }
@@ -78,6 +81,40 @@ app.post("/api/user/update",async (req,res) => {
   });
   await findOne.save();
   res.json({status:0,message:"更新成功"});
+});
+
+app.post("/api/user/login",async (req,res) => {
+  if(typeof req.body.username !== "string") return res.json({status:1,message:"用户名类型必须为字符串"});
+  if(req.body.username.length == 0) return res.json({status:1,message:"用户名不能为空"});
+  if(typeof req.body.password !== "string") return res.json({status:1,message:"密码类型必须为字符串"});
+  if(req.body.password.length == 0){
+    return res.json({status:1,message:"密码不能为空"});
+  }
+  let findOne = await User.findOne({username:req.body.username});
+  if(!findOne){
+    return res.json({status:1,message:"用户不存在或密码错误"});
+  }
+  let checkPassword = bcrypt.compareSync(req.body.password,findOne.password);
+  if(!checkPassword){
+    return res.json({status:1,message:"用户不存在或密码错误"});
+  }
+  req.session.userId = findOne._id;
+  req.session.username = findOne.username;
+  res.json({status:0,message:"登录成功",userId:findOne._id});
+});
+
+app.post("/api/user/logout",requireLogin,async (req,res) => {
+  req.session = null;
+  res.json({status:0,message:"登出成功"});
+});
+
+app.get("/api/user/info",requireLogin, async (req,res) => {
+  let findOne = await User.findOne({_id:req.session.userId}).select(["_id","username"]);
+  if(!findOne){
+    return res.json({status:1,message:"用户不存在"});
+  }else{
+    res.json({status:0,message:"获取用户信息成功",user:findOne});
+  }
 })
 
 app.post("/api/user/register",async (req,res) => {
@@ -98,16 +135,18 @@ app.post("/api/user/register",async (req,res) => {
     return res.json({status:1,message:"用户已存在"});
   }
   let password= bcrypt.hashSync(req.body.password,10); 
-  // console.log(bcrypt.hashSync(req.body.password,10));
-  // let result = await bcrypt.compare("123456","$2b$10$F3pExbAKI6acPzlAJEAGlez5NfB7Bq3x6gzc0ru0uu6V4Vfi8kJt6")
-  // console.log(result);
   let user = new User({
     username:req.body.username,
     password:password
   });
-  console.log(user.toObject());
-  // await user.save();
+  await user.save();
+  req.session.userId = user._id;
+  req.session.username = req.body.username;
   res.json({status:0,message:"注册成功"});
+});
+
+app.get("/api/return-cookie",(req,res) => {
+  res.send(req.cookies)
 });
 
 app.use((err,req,res,next) => {
