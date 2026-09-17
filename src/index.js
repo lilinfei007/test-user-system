@@ -1,18 +1,16 @@
 import express from "express";
-import cookieParser from "cookie-parser";
-import cookieSession from "cookie-session";
 import bcrypt  from "bcryptjs";
 import mongoose from "mongoose";
 import fs from "fs";
 import { fileURLToPath } from 'url'; 
 import path, { dirname } from "path";
 import {randomString} from "./utils.js";
+import middleware from "./middleware.js";
 const { Schema } = mongoose;
 const ObjectId = mongoose.Types.ObjectId;
 const userSchema = new Schema({
   password:String,
 });
-
 const extraUserInfo = {
   username:String,
   phoneNumber:String,
@@ -25,15 +23,7 @@ const User = mongoose.model("user",userSchema);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const writeError = fs.createWriteStream(path.join(__dirname,"./Error/error.log"),{flags:"a"})
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({extended:true}));
-app.use(cookieParser());
-app.use(cookieSession({
-  name:"session",
-  keys:["key1","key2"],
-  maxAge:24*60*60*1000
-}));
-
+middleware(app);
 const requireLogin = (req,res,next) => {
   if(!req.session.userId) return res.json({status:1,message:"用户未登录或登录已超时"});
   next();
@@ -109,7 +99,7 @@ app.post("/api/user/logout",requireLogin,async (req,res) => {
 });
 
 app.get("/api/user/info",requireLogin, async (req,res) => {
-  let findOne = await User.findOne({_id:req.session.userId}).select(["_id","username"]);
+  let findOne = await User.findOne({_id:req.session.userId}).select(["_id", ...Object.keys(extraUserInfo)]);
   if(!findOne){
     return res.json({status:1,message:"用户不存在"});
   }else{
