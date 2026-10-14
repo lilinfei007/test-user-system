@@ -3,24 +3,23 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "dev": "concurrently \"pnpm --filter web dev\"  \"pnpm --filter api dev\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.11.2",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.11.2",
+  "type": "module",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cookie-parser": "^1.4.7",
-    "cookie-session": "^2.1.1",
-    "dotenv": "^18.0.1",
-    "express": "^5.2.1",
-    "formidable": "^3.5.4",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.10.0",
-    "nodemon": "^3.1.14"
+    "concurrently": "^9.2.5"
   }
 }
