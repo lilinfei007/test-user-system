@@ -91,4 +91,59 @@ router.post("/",async (req,res,next) => {
   //   res.json({fields,files});
   // })
 });
+
+router.get("/file/:_id",async (req,res,next) => {
+  console.log(req.params._id);
+  let doc = await FileModel.findById(req.params._id);
+  console.dir(doc,{depth:null});
+  if(doc){
+    res.set('content-type',doc.mimetype);
+    res.send(doc.file);
+  }else{
+    res.json({
+      status:1,
+      message:"文件不存在或_id错误"
+    })
+  }
+});
+
+router.get("/list",async (req,res,next) => {
+  let list = await FileModel.aggregate([{
+    $match:{
+      name:new RegExp(`${req.query.name || ''}`,'i')
+    }
+  },{
+    $facet:{
+      total:[{$count:"total"}],
+      list:[{
+        $skip:(Number(req.query.page_size) || 10) * (Number(req.query.page_index) || 0) 
+      },{
+        $limit:(Number(req.query.page_size) || 10)
+      },{
+        $project:{
+          "__v":0,
+          "file":0
+        }
+      }]
+    }
+  },{
+    $project:{
+      list:1,
+      total:{
+        $ifNull:[{
+          $arrayElemAt:["$total.total",0]
+        },0]
+      }
+    }
+  }]);
+  res.json({
+    status:0,
+    data:{
+      page_index:(Number(req.query.page_index) || 1),
+      page_size:(Number(req.query.page_size) || 10),
+      list:[...list[0].list],
+      total:list[0].total
+    }
+  });
+})
 export default router;
